@@ -1,0 +1,47 @@
+🚀 匿名聊天室 - 最终操作指南
+
+=== 第一步：上传到 GitHub ===
+
+1. 打开 GitHub Desktop
+2. 点击左上角 "File" → "Add local repository"
+3. 选择文件夹：
+   C:\Users\Admin\WorkBuddy\20260312091516\anonymous-chat
+4. 点击 "Add repository"
+5. 点击右上角的 "Publish repository"
+6. 仓库名填写：anonymous-chat
+7. 点击 "Publish repository"
+8. 等待上传完成
+
+=== 第二步：部署到 Railway ===
+
+1. 打开浏览器，访问：https://railway.app
+2. 点击 "Sign In"，选择 "Continue with GitHub"
+3. 授权 Railway 访问你的 GitHub
+4. 点击 "New Project"
+5. 选择 "Deploy from GitHub repo"
+6. 找到并点击 "anonymous-chat"
+7. 等待自动部署（2-3分钟）
+8. 看到绿色的 "Deploy successful" 就完成了！
+
+=== 第三步：访问聊天室 ===
+
+1. 在 Railway 项目页面，找到 "Domains" 部分
+2. 点击显示的网址（如：anonymous-chat.up.railway.app）
+3. 浏览器打开，看到聊天室首页就成功了！
+
+=== 如何使用 ===
+
+1. 点击 "创建聊天室"
+2. 复制生成的邀请码
+3. 分享给朋友
+4. 朋友输入邀请码加入
+5. 开始匿名聊天！
+
+=== 如果失败怎么办 ===
+
+在 Railway 项目页面：
+1. 点击 "Logs" 标签
+2. 截图完整的错误日志
+3. 发给我，我来帮你解决
+
+=== 祝你好运！ ===

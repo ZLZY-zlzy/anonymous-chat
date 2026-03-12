@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聊天室 - 匿名聊天</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f3f4f6;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .message-bubble {
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+        .message-self {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 18px 18px 4px 18px;
+        }
+        .message-other {
+            background: white;
+            color: #1f2937;
+            border-radius: 18px 18px 18px 4px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .system-message {
+            background: rgba(0,0,0,0.05);
+            color: #6b7280;
+            font-size: 0.875rem;
+            padding: 8px 16px;
+            border-radius: 16px;
+        }
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #9ca3af;
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+            margin: 0 2px;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body>
+    <!-- 连接状态遮罩 -->
+    <div id="connectingOverlay" class="fixed inset-0 bg-gray-900/90 flex items-center justify-center z-50">
+        <div class="text-center">
+            <div class="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p class="text-white text-lg">正在连接聊天室...</p>
+        </div>
+    </div>
+
+    <!-- 主界面 -->
+    <div class="h-full flex flex-col">
+        <!-- 头部 -->
+        <header class="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm">
+            <div class="flex items-center gap-3">
+                <button onclick="leaveRoom()" class="p-2 hover:bg-gray-100 rounded-lg transition">
+                    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                </button>
+                <div>
+                    <h1 class="font-semibold text-gray-800">匿名聊天室</h1>
+                    <div class="flex items-center gap-2 text-sm text-gray-500">
+                        <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                        <span id="userCount">0 人在线</span>
+                    </div>
+                </div>
+            </div>
+            <button onclick="showInviteCode()" class="p-2 hover:bg-gray-100 rounded-lg transition" title="查看邀请码">
+                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path>
+                </svg>
+            </button>
+        </header>
+
+        <!-- 消息区域 -->
+        <div id="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-hide">
+            <div class="text-center py-8">
+                <div class="inline-block px-4 py-2 bg-indigo-100 text-indigo-700 rounded-full text-sm">
+                    欢迎来到匿名聊天室
+                </div>
+                <p class="text-gray-400 text-sm mt-2">消息将在所有人离开后自动清除</p>
+            </div>
+        </div>
+
+        <!-- 输入区域 -->
+        <div class="bg-white border-t border-gray-200 p-4">
+            <div id="typingIndicator" class="hidden text-sm text-gray-500 mb-2 pl-4">
+                <span id="typingUser"></span> 正在输入...
+            </div>
+            <form id="messageForm" class="flex gap-2">
+                <input 
+                    type="text" 
+                    id="messageInput" 
+                    placeholder="输入消息..." 
+                    class="flex-1 px-4 py-3 bg-gray-100 border-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    maxlength="500"
+                    autocomplete="off"
+                >
+                <button 
+                    type="submit" 
+                    class="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl font-medium hover:opacity-90 transition"
+                >
+                    发送
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 邀请码弹窗 -->
+    <div id="inviteModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">邀请朋友加入</h3>
+            <div class="bg-gray-100 rounded-xl p-4 mb-4 text-center">
+                <div class="text-sm text-gray-500 mb-1">邀请码</div>
+                <div id="modalInviteCode" class="text-2xl font-bold text-indigo-600 tracking-wider"></div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="copyCode()" class="flex-1 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition">
+                    复制
+                </button>
+                <button onclick="closeInviteModal()" class="flex-1 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">
+                    关闭
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 获取URL参数
+        const urlParams = new URLSearchParams(window.location.search);
+        const inviteCode = urlParams.get('code');
+
+        if (!inviteCode) {
+            alert('请输入邀请码');
+            window.location.href = '/';
+        }
+
+        // 连接Socket
+        const socket = io({
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            timeout: 20000
+        });
+        let userName = null;
+        let roomId = null;
+        let typingTimer = null;
+        let reconnectAttempts = 0;
+
+        // 连接成功
+        socket.on('connect', () => {
+            console.log('✓ 已连接到服务器');
+            reconnectAttempts = 0;
+            // 验证邀请码并加入房间
+            verifyAndJoin();
+        });
+
+        // 连接错误
+        socket.on('connect_error', (error) => {
+            console.error('连接错误:', error);
+            reconnectAttempts++;
+            if (reconnectAttempts >= 5) {
+                document.getElementById('connectingOverlay').innerHTML = `
+                    <div class="text-center">
+                        <div class="text-red-500 text-xl mb-4">连接失败</div>
+                        <p class="text-white">请检查网络连接或刷新页面重试</p>
+                        <button onclick="window.location.reload()" class="mt-4 px-4 py-2 bg-indigo-500 text-white rounded">
+                            刷新页面
+                        </button>
+                    </div>
+                `;
+            }
+        });
+
+        // 断开连接
+        socket.on('disconnect', (reason) => {
+            console.warn('断开连接:', reason);
+            if (reason === 'io server disconnect') {
+                alert('你已被断开连接，请刷新页面重试');
+            }
+        });
+
+        // 验证邀请码
+        async function verifyAndJoin() {
+            // 验证邀请码格式
+            if (!inviteCode || inviteCode.length !== 8) {
+                alert('邀请码格式不正确');
+                window.location.href = '/';
+                return;
+            }
+
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+                const res = await fetch('/api/verify-invite', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ inviteCode }),
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+
+                if (!res.ok) {
+                    throw new Error(`HTTP错误: ${res.status}`);
+                }
+
+                const data = await res.json();
+
+                if (data.success) {
+                    roomId = data.roomId;
+                    socket.emit('join-room', { roomId, inviteCode });
+                } else {
+                    alert(`邀请码无效: ${data.message || '未知错误'}`);
+                    window.location.href = '/';
+                }
+            } catch (err) {
+                console.error('验证邀请码失败:', err);
+                if (err.name === 'AbortError') {
+                    alert('请求超时，请检查网络连接');
+                } else {
+                    alert(`连接失败: ${err.message}`);
+                }
+                window.location.href = '/';
+            }
+        }
+
+        // 成功加入房间
+        socket.on('room-joined', (data) => {
+            userName = data.userName;
+            document.getElementById('connectingOverlay').classList.add('hidden');
+            document.getElementById('userCount').textContent = `${data.userCount} 人在线`;
+            
+            // 显示历史消息
+            data.messages.forEach(msg => addMessage(msg));
+            
+            // 聚焦输入框
+            document.getElementById('messageInput').focus();
+        });
+
+        // 新用户加入
+        socket.on('user-joined', (data) => {
+            document.getElementById('userCount').textContent = `${data.userCount} 人在线`;
+            addSystemMessage(data.message);
+        });
+
+        // 用户离开
+        socket.on('user-left', (data) => {
+            document.getElementById('userCount').textContent = `${data.userCount} 人在线`;
+            addSystemMessage(data.message);
+        });
+
+        // 新消息
+        socket.on('new-message', (message) => {
+            addMessage(message);
+        });
+
+        // 用户正在输入
+        socket.on('user-typing', (data) => {
+            document.getElementById('typingUser').textContent = data.userName;
+            document.getElementById('typingIndicator').classList.remove('hidden');
+        });
+
+        // 用户停止输入
+        socket.on('user-stop-typing', () => {
+            document.getElementById('typingIndicator').classList.add('hidden');
+        });
+
+        // 错误处理
+        socket.on('error', (data) => {
+            alert(data.message);
+            window.location.href = '/';
+        });
+
+        // 发送消息
+        document.getElementById('messageForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const input = document.getElementById('messageInput');
+            const content = input.value.trim();
+            
+            if (!content) return;
+            
+            socket.emit('send-message', content);
+            input.value = '';
+            socket.emit('stop-typing');
+        });
+
+        // 输入检测
+        document.getElementById('messageInput').addEventListener('input', () => {
+            socket.emit('typing');
+            
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(() => {
+                socket.emit('stop-typing');
+            }, 1000);
+        });
+
+        // 添加消息到界面
+        function addMessage(message) {
+            const container = document.getElementById('messagesContainer');
+            const isSelf = message.userName === userName;
+            const time = new Date(message.timestamp).toLocaleTimeString('zh-CN', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            
+            const div = document.createElement('div');
+            div.className = `flex ${isSelf ? 'justify-end' : 'justify-start'}`;
+            div.innerHTML = `
+                <div class="message-bubble ${isSelf ? 'message-self' : 'message-other'} px-4 py-2">
+                    ${!isSelf ? `<div class="text-xs opacity-70 mb-1">${message.userName}</div>` : ''}
+                    <div>${escapeHtml(message.content)}</div>
+                    <div class="text-xs opacity-50 mt-1 text-right">${time}</div>
+                </div>
+            `;
+            
+            container.appendChild(div);
+            scrollToBottom();
+        }
+
+        // 添加系统消息
+        function addSystemMessage(text) {
+            const container = document.getElementById('messagesContainer');
+            const div = document.createElement('div');
+            div.className = 'flex justify-center';
+            div.innerHTML = `<div class="system-message">${text}</div>`;
+            container.appendChild(div);
+            scrollToBottom();
+        }
+
+        // 滚动到底部
+        function scrollToBottom() {
+            const container = document.getElementById('messagesContainer');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // HTML转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 离开房间
+        function leaveRoom() {
+            if (confirm('确定要离开聊天室吗？')) {
+                window.location.href = '/';
+            }
+        }
+
+        // 显示邀请码
+        function showInviteCode() {
+            document.getElementById('modalInviteCode').textContent = inviteCode;
+            document.getElementById('inviteModal').classList.remove('hidden');
+        }
+
+        // 关闭邀请码弹窗
+        function closeInviteModal() {
+            document.getElementById('inviteModal').classList.add('hidden');
+        }
+
+        // 复制邀请码
+        function copyCode() {
+            navigator.clipboard.writeText(inviteCode).then(() => {
+                alert('邀请码已复制！');
+            });
+        }
+
+        // 回车发送
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                document.getElementById('messageForm').dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
+</body>
+</html>

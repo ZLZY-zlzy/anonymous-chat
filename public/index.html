@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>匿名聊天室 - 邀请制</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        .input-field {
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s ease;
+        }
+        .input-field:focus {
+            border-color: #667eea;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .fade-in { animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .invite-code {
+            font-family: 'Courier New', monospace;
+            letter-spacing: 3px;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <!-- 导航 -->
+    <nav class="fixed top-0 left-0 right-0 z-50 glass border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                        </svg>
+                    </div>
+                    <span class="text-xl font-bold text-gray-800">匿名聊天室</span>
+                </div>
+                <div class="text-sm text-gray-600">邀请制 · 完全匿名</div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="pt-24 pb-12 px-4">
+        <div class="max-w-4xl mx-auto">
+            <!-- 欢迎 -->
+            <div class="text-center mb-12 fade-in">
+                <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">与朋友匿名聊天</h1>
+                <p class="text-xl text-white/80">创建专属聊天室，邀请朋友加入。无需注册，完全匿名。</p>
+            </div>
+
+            <!-- 操作区 -->
+            <div class="glass rounded-2xl p-8 mb-8 fade-in shadow-2xl">
+                <div class="grid md:grid-cols-2 gap-8">
+                    <!-- 创建 -->
+                    <div class="text-center p-6 rounded-xl bg-gray-50">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mx-auto mb-4">
+                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-800 mb-2">创建聊天室</h3>
+                        <p class="text-gray-600 mb-4 text-sm">生成专属邀请码，邀请朋友加入</p>
+                        <button onclick="createRoom()" class="btn-primary px-8 py-3 rounded-xl text-white font-medium">
+                            创建房间
+                        </button>
+                    </div>
+
+                    <!-- 加入 -->
+                    <div class="text-center p-6 rounded-xl bg-gray-50">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center mx-auto mb-4">
+                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-800 mb-2">加入聊天室</h3>
+                        <p class="text-gray-600 mb-4 text-sm">输入邀请码，加入朋友的聊天室</p>
+                        <div class="flex gap-2">
+                            <input type="text" id="inviteCode" placeholder="输入邀请码" 
+                                class="input-field flex-1 px-4 py-3 rounded-xl text-center uppercase">
+                            <button onclick="joinRoom()" class="btn-primary px-6 py-3 rounded-xl text-white font-medium">
+                                加入
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 创建成功弹窗 -->
+            <div id="createModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <div class="glass rounded-2xl p-8 max-w-md w-full fade-in">
+                    <div class="text-center">
+                        <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+                            <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-2xl font-bold text-gray-800 mb-2">聊天室创建成功！</h3>
+                        <p class="text-gray-600 mb-6">分享邀请码给朋友，让他们加入聊天</p>
+                        
+                        <div class="bg-gray-100 rounded-xl p-4 mb-4">
+                            <div class="text-sm text-gray-500 mb-1">邀请码</div>
+                            <div id="newInviteCode" class="invite-code text-3xl font-bold text-indigo-600"></div>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button onclick="copyInviteCode()" class="flex-1 btn-primary py-3 rounded-xl text-white font-medium">
+                                复制邀请码
+                            </button>
+                            <button onclick="enterRoom()" class="flex-1 bg-gray-200 py-3 rounded-xl text-gray-800 font-medium hover:bg-gray-300">
+                                进入房间
+                            </button>
+                        </div>
+                        <button onclick="closeModal()" class="mt-4 text-gray-500 hover:text-gray-700">
+                            关闭
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 功能特点 -->
+            <div class="grid md:grid-cols-3 gap-6">
+                <div class="glass rounded-xl p-6 text-center">
+                    <div class="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                        </svg>
+                    </div>
+                    <h4 class="font-semibold text-gray-800 mb-1">完全匿名</h4>
+                    <p class="text-sm text-gray-600">无需注册，自动生成随机昵称</p>
+                </div>
+                <div class="glass rounded-xl p-6 text-center">
+                    <div class="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                        </svg>
+                    </div>
+                    <h4 class="font-semibold text-gray-800 mb-1">邀请制</h4>
+                    <p class="text-sm text-gray-600">只有知道邀请码的人才能加入</p>
+                </div>
+                <div class="glass rounded-xl p-6 text-center">
+                    <div class="w-12 h-12 rounded-xl bg-pink-100 flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                    <h4 class="font-semibold text-gray-800 mb-1">实时聊天</h4>
+                    <p class="text-sm text-gray-600">基于WebSocket的即时消息传输</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let currentRoomId = null;
+        let currentInviteCode = null;
+
+        async function createRoom() {
+            try {
+                const btn = document.querySelector('button[onclick="createRoom()"]');
+                btn.textContent = '创建中...';
+                btn.disabled = true;
+
+                const res = await fetch('/api/create-room', { method: 'POST' });
+                const data = await res.json();
+
+                if (data.success) {
+                    currentRoomId = data.roomId;
+                    currentInviteCode = data.inviteCode;
+                    document.getElementById('newInviteCode').textContent = data.inviteCode;
+                    document.getElementById('createModal').classList.remove('hidden');
+                }
+            } catch (err) {
+                alert('创建失败，请重试');
+            } finally {
+                const btn = document.querySelector('button[onclick="createRoom()"]');
+                btn.textContent = '创建房间';
+                btn.disabled = false;
+            }
+        }
+
+        function joinRoom() {
+            const code = document.getElementById('inviteCode').value.trim().toUpperCase();
+            if (!code) {
+                alert('请输入邀请码');
+                return;
+            }
+            window.location.href = `/chat.html?code=${code}`;
+        }
+
+        function copyInviteCode() {
+            navigator.clipboard.writeText(currentInviteCode).then(() => {
+                alert('邀请码已复制！');
+            });
+        }
+
+        function enterRoom() {
+            window.location.href = `/chat.html?code=${currentInviteCode}`;
+        }
+
+        function closeModal() {
+            document.getElementById('createModal').classList.add('hidden');
+        }
+
+        // 回车加入
+        document.getElementById('inviteCode')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') joinRoom();
+        });
+    </script>
+</body>
+</html>
